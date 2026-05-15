@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FISHTANK.LIVE // TERMINAL v2.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --amber: #c8a84b;
+    --amber-bright: #f0c060;
+    --amber-dim: #7a6020;
+    --amber-glow: #e8b840;
+    --bg: #0a0800;
+    --bg2: #110e02;
+    --bg3: #1a1500;
+    --scanline: rgba(0,0,0,0.18);
+    --green-accent: #4a6a1a;
+    --rust: #8b3a1a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--amber);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* CRT scanlines overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      var(--scanline) 0px,
+      var(--scanline) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  .noise {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9997;
+    animation: noiseShift 0.5s steps(2) infinite;
+  }
+
+  @keyframes noiseShift {
+    0% { transform: translate(0,0); }
+    25% { transform: translate(-1px, 1px); }
+    50% { transform: translate(1px, -1px); }
+    75% { transform: translate(-1px, -1px); }
+    100% { transform: translate(1px, 1px); }
+  }
+
+  .wrapper {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    padding: 32px 0 48px;
+    position: relative;
+  }
+
+  .logo-img {
+    max-width: 480px;
+    width: 90%;
+    filter: sepia(1) hue-rotate(10deg) saturate(1.4) brightness(1.0) drop-shadow(0 0 18px #c8a84b88);
+    animation: logoGlow 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes logoGlow {
+    from { filter: sepia(1) hue-rotate(10deg) saturate(1.4) brightness(0.95) drop-shadow(0 0 12px #c8a84b66); }
+    to   { filter: sepia(1) hue-rotate(10deg) saturate(1.6) brightness(1.1) drop-shadow(0 0 28px #f0c060aa); }
+  }
+
+  .header-sub {
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+    color: var(--amber-dim);
+    letter-spacing: 6px;
+    margin-top: 14px;
+    text-transform: uppercase;
+    animation: blink 4s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0; }
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--amber-dim);
+    margin: 0 0 36px;
+    position: relative;
+  }
+
+  .divider::before {
+    content: '// CONTESTANT DATABASE //';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    padding: 0 16px;
+    font-family: 'VT323', monospace;
+    font-size: 0.85rem;
+    color: var(--amber-dim);
+    letter-spacing: 4px;
+    white-space: nowrap;
+  }
+
+  /* ── SEASON ACCORDION ── */
+  .seasons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .season-block {
+    border: 1px solid var(--amber-dim);
+    background: var(--bg2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .season-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--amber-dim);
+    transition: background 0.2s;
+  }
+
+  .season-block.open::before {
+    background: var(--amber-glow);
+    box-shadow: 0 0 8px var(--amber-glow);
+  }
+
+  .season-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px 14px 22px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+    position: relative;
+  }
+
+  .season-header:hover {
+    background: rgba(200,168,75,0.07);
+  }
+
+  .season-arrow {
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    color: var(--amber-dim);
+    width: 16px;
+    transition: transform 0.2s, color 0.2s;
+    flex-shrink: 0;
+  }
+
+  .season-block.open .season-arrow {
+    transform: rotate(90deg);
+    color: var(--amber-bright);
+  }
+
+  .season-label {
+    font-family: 'VT323', monospace;
+    font-size: 1.5rem;
+    color: var(--amber-bright);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(200,168,75,0.5);
+    flex: 1;
+  }
+
+  .season-status {
+    font-family: 'VT323', monospace;
+    font-size: 0.85rem;
+    color: var(--amber-dim);
+    letter-spacing: 2px;
+  }
+
+  /* ── SEASON CONTENT ── */
+  .season-content {
+    display: none;
+    padding: 0 0 12px 0;
+    border-top: 1px solid rgba(200,168,75,0.15);
+  }
+
+  .season-block.open .season-content {
+    display: block;
+  }
+
+  /* ── CATEGORY ACCORDION ── */
+  .category-block {
+    border-left: none;
+  }
+
+  .category-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px 10px 36px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .category-header:hover {
+    background: rgba(200,168,75,0.05);
+  }
+
+  .category-arrow {
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    color: var(--amber-dim);
+    width: 14px;
+    transition: transform 0.2s, color 0.2s;
+    flex-shrink: 0;
+  }
+
+  .category-block.open .category-arrow {
+    transform: rotate(90deg);
+    color: var(--amber);
+  }
+
+  .category-label {
+    font-family: 'VT323', monospace;
+    font-size: 1.25rem;
+    letter-spacing: 3px;
+    color: var(--amber);
+    text-transform: uppercase;
+  }
+
+  .category-count {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--amber-dim);
+    margin-left: auto;
+  }
+
+  .category-content {
+    display: none;
+    padding: 16px 24px 16px 50px;
+    background: rgba(0,0,0,0.3);
+    border-top: 1px solid rgba(200,168,75,0.08);
+  }
+
+  .category-block.open .category-content {
+    display: block;
+  }
+
+  /* ── INFO ROWS (Host, Production) ── */
+  .info-row {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--amber-dim);
+    padding: 4px 0;
+    letter-spacing: 1px;
+  }
+
+  .info-row span {
+    color: var(--amber);
+  }
+
+  /* ── PORTRAIT GRID ── */
+  .portrait-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 14px;
+  }
+
+  /* ── PORTRAIT CARD ── */
+  .portrait-card {
+    position: relative;
+    cursor: pointer;
+    border: 1px solid var(--amber-dim);
+    background: var(--bg3);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    aspect-ratio: 1 / 1.15;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .portrait-card:hover {
+    border-color: var(--amber);
+    box-shadow: 0 0 12px rgba(200,168,75,0.3);
+  }
+
+  .portrait-card.selected {
+    border-color: var(--amber-bright);
+    box-shadow: 0 0 20px rgba(240,192,96,0.45);
+  }
+
+  .portrait-img-wrap {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .portrait-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: sepia(0.2) contrast(1.05);
+    transition: filter 0.2s;
+    image-rendering: pixelated;
+  }
+
+  /* Dark overlay on selected */
+  .portrait-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.82);
+    opacity: 0;
+    transition: opacity 0.25s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .portrait-card.selected .portrait-overlay {
+    opacity: 1;
+  }
+
+  .overlay-name {
+    font-family: 'VT323', monospace;
+    font-size: 1.15rem;
+    color: var(--amber-bright);
+    letter-spacing: 2px;
+    text-align: center;
+    text-shadow: 0 0 8px var(--amber-glow);
+    line-height: 1.1;
+  }
+
+  .overlay-divider {
+    width: 60%;
+    border-top: 1px solid var(--amber-dim);
+    margin: 2px 0;
+  }
+
+  .overlay-socials {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .social-link {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--amber-dim);
+    text-decoration: none;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .social-link:hover {
+    color: var(--amber-bright);
+  }
+
+  .social-icon {
+    font-size: 0.7rem;
+    flex-shrink: 0;
+  }
+
+  .social-link.youtube { --ico-col: #c0392b; }
+  .social-link.twitch  { --ico-col: #6441a5; }
+  .social-link.kick    { --ico-col: #3a8a2a; }
+
+  .social-link .social-icon { color: var(--ico-col, var(--amber-dim)); }
+
+  /* Portrait name label (bottom bar) */
+  .portrait-name-bar {
+    background: rgba(0,0,0,0.8);
+    border-top: 1px solid var(--amber-dim);
+    padding: 4px 6px;
+    text-align: center;
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    color: var(--amber);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: background 0.2s;
+  }
+
+  .portrait-card.selected .portrait-name-bar {
+    background: rgba(200,168,75,0.12);
+    color: var(--amber-bright);
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 60px;
+    text-align: center;
+    font-family: 'VT323', monospace;
+    font-size: 0.85rem;
+    color: var(--amber-dim);
+    letter-spacing: 4px;
+    border-top: 1px solid rgba(200,168,75,0.12);
+    padding-top: 24px;
+  }
+
+  .footer .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--amber-dim);
+    animation: cursorBlink 1s step-end infinite;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+
+  @keyframes cursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--amber-dim); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 500px) {
+    .portrait-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+    .season-label { font-size: 1.2rem; }
+    .logo-img { max-width: 320px; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header class="header">
+    <img src="/mnt/user-data/uploads/1000191995.png" alt="Fishtank" class="logo-img">
+    <div class="header-sub">LIVE &bull; $50,000 PRIZE &bull; LAST ONE STANDING</div>
+  </header>
+
+  <hr class="divider">
+
+  <!-- SEASONS -->
+  <div class="seasons" id="seasons">
+
+    <!-- SEASON 1 -->
+    <div class="season-block open" id="season-1">
+      <div class="season-header" onclick="toggleSeason('season-1')">
+        <span class="season-arrow">&#9658;</span>
+        <span class="season-label">Season 1</span>
+        <span class="season-status">[ARCHIVED]</span>
+      </div>
+      <div class="season-content">
+        <!-- HOST -->
+        <div class="category-block" id="s1-host">
+          <div class="category-header" onclick="toggleCategory('s1-host')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Host</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">SHOW HOST &nbsp;&rarr;&nbsp; <span>[ ADD HOST NAME ]</span></div>
+          </div>
+        </div>
+        <!-- PRODUCTION -->
+        <div class="category-block" id="s1-prod">
+          <div class="category-header" onclick="toggleCategory('s1-prod')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Production</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">DIRECTOR &nbsp;&rarr;&nbsp; <span>[ ADD NAME ]</span></div>
+            <div class="info-row">PRODUCER &nbsp;&rarr;&nbsp; <span>[ ADD NAME ]</span></div>
+          </div>
+        </div>
+        <!-- FISH (open by default) -->
+        <div class="category-block open" id="s1-fish">
+          <div class="category-header" onclick="toggleCategory('s1-fish')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Fishs</span>
+            <span class="category-count">[ 1 CONTESTANT ]</span>
+          </div>
+          <div class="category-content">
+            <div class="portrait-grid">
+              <!-- Example portrait — duplicate and edit as needed -->
+              <div class="portrait-card" onclick="togglePortrait(this)">
+                <div class="portrait-img-wrap">
+                  <img src="/mnt/user-data/uploads/1000191994.png" alt="Binx">
+                  <div class="portrait-overlay">
+                    <div class="overlay-name">BINX</div>
+                    <div class="overlay-divider"></div>
+                    <div class="overlay-socials">
+                      <a class="social-link youtube" href="#" onclick="event.stopPropagation()">
+                        <span class="social-icon">▶</span> YouTube
+                      </a>
+                      <a class="social-link twitch" href="#" onclick="event.stopPropagation()">
+                        <span class="social-icon">◈</span> Twitch
+                      </a>
+                      <a class="social-link kick" href="#" onclick="event.stopPropagation()">
+                        <span class="social-icon">◆</span> Kick
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <div class="portrait-name-bar">BINX</div>
+              </div>
+
+              <!-- TEMPLATE: copy the block above and change name/links/image -->
+              <!--
+              <div class="portrait-card" onclick="togglePortrait(this)">
+                <div class="portrait-img-wrap">
+                  <img src="YOUR_IMAGE.png" alt="NAME">
+                  <div class="portrait-overlay">
+                    <div class="overlay-name">NAME</div>
+                    <div class="overlay-divider"></div>
+                    <div class="overlay-socials">
+                      <a class="social-link youtube" href="https://youtube.com/@handle" onclick="event.stopPropagation()">
+                        <span class="social-icon">▶</span> YouTube
+                      </a>
+                      <a class="social-link twitch" href="https://twitch.tv/handle" onclick="event.stopPropagation()">
+                        <span class="social-icon">◈</span> Twitch
+                      </a>
+                      <a class="social-link kick" href="https://kick.com/handle" onclick="event.stopPropagation()">
+                        <span class="social-icon">◆</span> Kick
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <div class="portrait-name-bar">NAME</div>
+              </div>
+              -->
+
+            </div>
+          </div>
+        </div>
+        <!-- FREELOADERS -->
+        <div class="category-block" id="s1-free">
+          <div class="category-header" onclick="toggleCategory('s1-free')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Freeloaders</span>
+            <span class="category-count">[ 0 ENTRIES ]</span>
+          </div>
+          <div class="category-content">
+            <div class="portrait-grid" id="s1-free-grid"></div>
+            <div class="info-row">[ NO RECORDS FOUND ]</div>
+          </div>
+        </div>
+        <!-- VISITORS -->
+        <div class="category-block" id="s1-visit">
+          <div class="category-header" onclick="toggleCategory('s1-visit')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Visitors</span>
+            <span class="category-count">[ 0 ENTRIES ]</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">[ NO RECORDS FOUND ]</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEASON 2 -->
+    <div class="season-block" id="season-2">
+      <div class="season-header" onclick="toggleSeason('season-2')">
+        <span class="season-arrow">&#9658;</span>
+        <span class="season-label">Season 2</span>
+        <span class="season-status">[ARCHIVED]</span>
+      </div>
+      <div class="season-content">
+        <div class="category-block open" id="s2-fish">
+          <div class="category-header" onclick="toggleCategory('s2-fish')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Fishs</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">[ ADD CONTESTANTS ]</div>
+          </div>
+        </div>
+        <div class="category-block" id="s2-host">
+          <div class="category-header" onclick="toggleCategory('s2-host')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Host</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">[ ADD HOST ]</div>
+          </div>
+        </div>
+        <div class="category-block" id="s2-prod">
+          <div class="category-header" onclick="toggleCategory('s2-prod')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Production</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">[ ADD CREW ]</div>
+          </div>
+        </div>
+        <div class="category-block" id="s2-free">
+          <div class="category-header" onclick="toggleCategory('s2-free')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Freeloaders</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">[ NO RECORDS ]</div>
+          </div>
+        </div>
+        <div class="category-block" id="s2-visit">
+          <div class="category-header" onclick="toggleCategory('s2-visit')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Visitors</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">[ NO RECORDS ]</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEASON 3 -->
+    <div class="season-block" id="season-3">
+      <div class="season-header" onclick="toggleSeason('season-3')">
+        <span class="season-arrow">&#9658;</span>
+        <span class="season-label">Season 3</span>
+        <span class="season-status">[ARCHIVED]</span>
+      </div>
+      <div class="season-content">
+        <div class="category-block open" id="s3-fish">
+          <div class="category-header" onclick="toggleCategory('s3-fish')">
+            <span class="category-arrow">&#9658;</span>
+            <span class="category-label">Fishs</span>
+          </div>
+          <div class="category-content">
+            <div class="info-row">[ ADD CONTESTANTS ]</div>
+          </div>
+        </div>
+        <div class="category-block" id="s3-host"><div class="category-header" onclick="toggleCategory('s3-host')"><span class="category-arrow">&#9658;</span><span class="category-label">Host</span></div><div class="category-content"><div class="info-row">[ ADD HOST ]</div></div></div>
+        <div class="category-block" id="s3-prod"><div class="category-header" onclick="toggleCategory('s3-prod')"><span class="category-arrow">&#9658;</span><span class="category-label">Production</span></div><div class="category-content"><div class="info-row">[ ADD CREW ]</div></div></div>
+        <div class="category-block" id="s3-free"><div class="category-header" onclick="toggleCategory('s3-free')"><span class="category-arrow">&#9658;</span><span class="category-label">Freeloaders</span></div><div class="category-content"><div class="info-row">[ NO RECORDS ]</div></div></div>
+        <div class="category-block" id="s3-visit"><div class="category-header" onclick="toggleCategory('s3-visit')"><span class="category-arrow">&#9658;</span><span class="category-label">Visitors</span></div><div class="category-content"><div class="info-row">[ NO RECORDS ]</div></div></div>
+      </div>
+    </div>
+
+    <!-- SEASON 4 -->
+    <div class="season-block" id="season-4">
+      <div class="season-header" onclick="toggleSeason('season-4')">
+        <span class="season-arrow">&#9658;</span>
+        <span class="season-label">Season 4</span>
+        <span class="season-status">[ARCHIVED]</span>
+      </div>
+      <div class="season-content">
+        <div class="category-block open" id="s4-fish">
+          <div class="category-header" onclick="toggleCategory('s4-fish')"><span class="category-arrow">&#9658;</span><span class="category-label">Fishs</span></div>
+          <div class="category-content"><div class="info-row">[ ADD CONTESTANTS ]</div></div>
+        </div>
+        <div class="category-block" id="s4-host"><div class="category-header" onclick="toggleCategory('s4-host')"><span class="category-arrow">&#9658;</span><span class="category-label">Host</span></div><div class="category-content"><div class="info-row">[ ADD HOST ]</div></div></div>
+        <div class="category-block" id="s4-prod"><div class="category-header" onclick="toggleCategory('s4-prod')"><span class="category-arrow">&#9658;</span><span class="category-label">Production</span></div><div class="category-content"><div class="info-row">[ ADD CREW ]</div></div></div>
+        <div class="category-block" id="s4-free"><div class="category-header" onclick="toggleCategory('s4-free')"><span class="category-arrow">&#9658;</span><span class="category-label">Freeloaders</span></div><div class="category-content"><div class="info-row">[ NO RECORDS ]</div></div></div>
+        <div class="category-block" id="s4-visit"><div class="category-header" onclick="toggleCategory('s4-visit')"><span class="category-arrow">&#9658;</span><span class="category-label">Visitors</span></div><div class="category-content"><div class="info-row">[ NO RECORDS ]</div></div></div>
+      </div>
+    </div>
+
+    <!-- SEASON 5 -->
+    <div class="season-block" id="season-5">
+      <div class="season-header" onclick="toggleSeason('season-5')">
+        <span class="season-arrow">&#9658;</span>
+        <span class="season-label">Season 5</span>
+        <span class="season-status">[LIVE]</span>
+      </div>
+      <div class="season-content">
+        <div class="category-block open" id="s5-fish">
+          <div class="category-header" onclick="toggleCategory('s5-fish')"><span class="category-arrow">&#9658;</span><span class="category-label">Fishs</span></div>
+          <div class="category-content"><div class="info-row">[ ADD CONTESTANTS ]</div></div>
+        </div>
+        <div class="category-block" id="s5-host"><div class="category-header" onclick="toggleCategory('s5-host')"><span class="category-arrow">&#9658;</span><span class="category-label">Host</span></div><div class="category-content"><div class="info-row">[ ADD HOST ]</div></div></div>
+        <div class="category-block" id="s5-prod"><div class="category-header" onclick="toggleCategory('s5-prod')"><span class="category-arrow">&#9658;</span><span class="category-label">Production</span></div><div class="category-content"><div class="info-row">[ ADD CREW ]</div></div></div>
+        <div class="category-block" id="s5-free"><div class="category-header" onclick="toggleCategory('s5-free')"><span class="category-arrow">&#9658;</span><span class="category-label">Freeloaders</span></div><div class="category-content"><div class="info-row">[ NO RECORDS ]</div></div></div>
+        <div class="category-block" id="s5-visit"><div class="category-header" onclick="toggleCategory('s5-visit')"><span class="category-arrow">&#9658;</span><span class="category-label">Visitors</span></div><div class="category-content"><div class="info-row">[ NO RECORDS ]</div></div></div>
+      </div>
+    </div>
+
+  </div><!-- /seasons -->
+
+  <footer class="footer">
+    FISHTANK.LIVE &bull; CONTESTANT DATABASE &bull; ALL RIGHTS RESERVED<span class="cursor"></span>
+  </footer>
+
+</div><!-- /wrapper -->
+
+<script>
+  function toggleSeason(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+  }
+
+  function toggleCategory(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+  }
+
+  function togglePortrait(card) {
+    // If already selected, deselect
+    if (card.classList.contains('selected')) {
+      card.classList.remove('selected');
+      return;
+    }
+    // Deselect siblings in the same grid
+    const grid = card.closest('.portrait-grid');
+    if (grid) {
+      grid.querySelectorAll('.portrait-card.selected').forEach(c => c.classList.remove('selected'));
+    }
+    card.classList.add('selected');
+  }
+
+  // Close portrait if clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.portrait-card')) {
+      document.querySelectorAll('.portrait-card.selected').forEach(c => c.classList.remove('selected'));
+    }
+  });
+</script>
+</body>
+</html>
